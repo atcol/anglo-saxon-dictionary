@@ -30,7 +30,15 @@
             rust
             pkg-config
           ];
-          buildInputs = [ rustfmt pre-commit rustPackages.clippy bacon openssl ];
+          buildInputs = [ 
+            rustfmt 
+            pre-commit 
+            rustPackages.clippy 
+            bacon 
+            openssl 
+            nodejs
+            tailwindcss
+          ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
       });

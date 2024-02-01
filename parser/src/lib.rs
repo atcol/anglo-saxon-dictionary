@@ -1,5 +1,6 @@
 use anyhow::Context;
 use log::debug;
+use reqwest::IntoUrl;
 use scraper::{ElementRef, Html, Node, Selector};
 use std::path::Path;
 use tantivy::collector::TopDocs;
@@ -182,12 +183,7 @@ impl TryFrom<Vec<Entry>> for Dictionary {
     }
 }
 
-/// Parse the given HTML file into a `Vec` of `Entry`. IO or parsing errors may occur.
-pub fn parse<P>(file_path: &P) -> anyhow::Result<Dictionary>
-where
-    P: AsRef<Path>,
-{
-    let html = std::fs::read_to_string(&file_path)?;
+pub fn parse_raw(html: String) -> anyhow::Result<Dictionary> {
     let document = Html::parse_document(&html);
     let paragraphs = Selector::parse("p").unwrap();
 
@@ -210,6 +206,20 @@ where
     Ok(entries.try_into()?)
 }
 
+/// Parse the given HTML file into a `Vec` of `Entry`. IO or parsing errors may occur.
+pub fn parse<P>(file_path: &P) -> anyhow::Result<Dictionary>
+where
+    P: AsRef<Path>,
+{
+    let html = std::fs::read_to_string(&file_path)?;
+    parse_raw(html)
+}
+
+pub async fn parse_url<T: IntoUrl>(url: T) -> anyhow::Result<Dictionary> {
+    let raw_html = reqwest::get(url).await.unwrap().text().await.unwrap();
+    parse_raw(raw_html)
+}
+
 #[cfg(test)]
 mod test {
     use super::parse;
@@ -223,9 +233,8 @@ mod test {
     #[test]
     fn test_parse() {
         init();
-        let path = PathBuf::from("data/html/pg31543-images.html");
-        info!("Parsing from {:?}", path);
-        let dictionary = parse(&path).unwrap();
+        let dictionary = 
+            parse_url("https://www.gutenberg.org/cache/epub/31543/pg31543-images.html".to_string()).unwrap();
 
         let top_docs = dictionary.search("light", None).unwrap();
         assert_eq!(10, top_docs.len());
